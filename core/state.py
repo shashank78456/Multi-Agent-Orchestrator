@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field
 class Phase(str, Enum):
     CLARIFY = "clarify"
     PLAN = "plan"
-    EXECUTE = "executed"
-    HITL_APPROVAl = "hitl_approval"
+    EXECUTE = "execute"
+    HITL_APPROVAL = "hitl_approval"
     DONE = "done"
     FAILED = "failed"
 
@@ -27,12 +27,13 @@ class TaskNode(BaseModel):
     output: Optional[str] = None
     error: Optional[str] = None
 
-class SystemState():
+class SystemState(BaseModel):
     query: str
     phase: Phase = Phase.CLARIFY
+    clarification_checked = False
     needs_clarification: bool = False
     clarification_question: Optional[str] = None
     clarification_answer: Optional[str] = None
     dag: Dict[str, TaskNode] = Field(default_factory=dict)
-    iteration_count: int = 0
+    iteration_count: int = Field(default=0, ge=0)
     error: Optional[str] = None
