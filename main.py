@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 from agents.clarifier import Clarifier
 from agents.executor import Executor
@@ -6,10 +7,22 @@ from agents.planner import Planner
 from core.approval import ApprovalManager
 from core.orchestrator import Orchestrator
 from core.state import Phase, SystemState
+from storage import load_state, save_state
 
-async def run_workflow(query: str) -> None:
-    state = SystemState(query=query)
+STATE_FILE = "state.json"
 
+def save_checkpoint(state: SystemState, filename: str) -> None:
+    """
+    Save the current workflow state.
+    """
+    
+    try:
+        save_state(state, filename)
+    except (OSError, ValueError) as exc:
+        print(f"Warning: Could not save workflow state: {exc}")
+
+async def run_workflow(state: SystemState, state_file: str=STATE_FILE) -> SystemState:
+    
     clarifier = Clarifier()
     planner = Planner()
     executor = Executor()
@@ -28,7 +41,7 @@ async def run_workflow(query: str) -> None:
                 clarifier.check(state)
 
             if state.needs_clarification:
-                print(state.clarification_question)
+                print(state.clarification_question or "Please provide more details about your request.")
                 
                 while True:
                     answer = input("Your answer: ").strip()
@@ -38,6 +51,8 @@ async def run_workflow(query: str) -> None:
 
                     except ValueError as exc:
                         print(exc)
+                    
+                save_checkpoint(state, state_file)    
             continue
 
         if state.phase == Phase.PLAN:
@@ -47,10 +62,13 @@ async def run_workflow(query: str) -> None:
             except ValueError as exc:
                 state.error = f"Planning failed: {exc}"
 
+            save_checkpoint(state, state_file)
             continue
 
         if state.phase == Phase.EXECUTE:
+            save_checkpoint(state, state_file)
             await executor.execute_ready(state)
+            save_checkpoint(state, state_file)
             continue
 
         if state.phase == Phase.HITL_APPROVAL:
@@ -66,11 +84,13 @@ async def run_workflow(query: str) -> None:
                     if decision in {"a", "approve", "y", "yes"}:
                         approval_manager.approve_task(state, node.id)
                         print(f"Task '{node.id}' approved.")
+                        save_checkpoint(state, state_file)
                         break
 
                     elif decision in {"r", "reject", "n", "no"}:
                         approval_manager.reject_task(state, node.id)
                         print(f"Task '{node.id}' rejected.")
+                        save_checkpoint(state, state_file)
                         break
 
                     else:
@@ -88,7 +108,8 @@ async def run_workflow(query: str) -> None:
                 print(f"\n{node.id}:")
                 print(node.output or "(No output)")
 
-            return
+            save_checkpoint(state, state_file)
+            return state
 
         if state.phase == Phase.FAILED:
             print(f"\nWorkflow failed: {state.error}")
@@ -96,11 +117,38 @@ async def run_workflow(query: str) -> None:
             for node in state.dag.values():
                 if node.error:
                     print(f"{node.id}: {node.error}")
-            return
+                    
+            save_checkpoint(state, state_file)
+            return state
 
 def main() -> None:
-    query = input("Enter your query: ").strip()
-    asyncio.run(run_workflow(query))
+    print("1. Start a new workflow")
+    print("2. Resume a previous workflow")
+    choice = input("\nChoose an option [1/2]: ").strip()
+    
+    if(choice=="1"):
+        query = input("\nEnter your query: ").strip()
+        state = SystemState(query=query)
+    
+    elif(choice=="2"):
+        if not Path(STATE_FILE).exists():
+            print(f"\nNo saved workflow found at '{STATE_FILE}'.")
+            return
+
+        try:
+            state = load_state(STATE_FILE)
+
+        except (OSError, ValueError) as exc:
+            print(f"\nCould not load saved workflow: {exc}")
+            return
+
+        print(f"\nResuming workflow for: {state.query}")
+
+    else:
+        print("\nInvalid Input")
+        return
+    
+    asyncio.run(run_workflow(state))
 
 if __name__ == "__main__":
     main()
