@@ -15,7 +15,7 @@ class Clarifier:
         
         if query in vague_queries:
             state.needs_clarification = True
-            state.clarification_answer = "Could you describe what to do in a bit more detail"
+            state.clarification_answer = ("Could you describe what you want to accomplish in a little more detail?")
         else:
             state.needs_clarification = False
             state.clarification_question = None
@@ -28,7 +28,7 @@ class Clarifier:
         Incorporate the user's clarification into the original query.
         """
         
-        answer.strip()
+        answer = answer.strip()
         
         if not state.needs_clarification:
             raise ValueError("The query needs no clarification")
@@ -37,7 +37,7 @@ class Clarifier:
             raise ValueError("Clarification answer cannot be empty")
 
         state.clarification_answer = answer
-        state.query = {f"{state.query}\nAdditional context: {answer}"}
+        state.query = (f"{state.query}\nAdditional context: {answer}").strip()
         state.needs_clarification = False
         state.clarification_question = None
         
