@@ -2,7 +2,7 @@ from typing import Dict, List
 from .state import NodeStatus, TaskNode
 from collections import deque
 
-def validate_dag(dag: Dict[str, TaskNode]) -> List[TaskNode]:
+def validate_dag(dag: Dict[str, TaskNode]) -> None:
     """
     Validate the DAG.
 

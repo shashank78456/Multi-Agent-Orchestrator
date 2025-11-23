@@ -30,7 +30,7 @@ class TaskNode(BaseModel):
 class SystemState(BaseModel):
     query: str
     phase: Phase = Phase.CLARIFY
-    clarification_checked = False
+    clarification_checked: bool = False
     needs_clarification: bool = False
     clarification_question: Optional[str] = None
     clarification_answer: Optional[str] = None
