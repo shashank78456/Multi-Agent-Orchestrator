@@ -15,7 +15,7 @@ class Clarifier:
         
         if query in vague_queries:
             state.needs_clarification = True
-            state.clarification_answer = ("Could you describe what you want to accomplish in a little more detail?")
+            state.clarification_question = ("Could you describe what you want to accomplish in a little more detail?")
         else:
             state.needs_clarification = False
             state.clarification_question = None

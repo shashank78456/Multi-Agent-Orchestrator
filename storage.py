@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from core.dag import validate_dag
-from core.state import SystemState
+from core.state import NodeStatus, SystemState
 
 def save_state(state: SystemState, filename: str="state.json") -> None:
     """
@@ -47,8 +47,13 @@ def load_state(filename: str = "state.json") -> SystemState:
         data = json.load(file)
 
     state = SystemState.model_validate(data)
-    
     validate_dag(state.dag)
+
+    for node in state.dag.values():
+        if node.status==NodeStatus.RUNNING:
+            node.status = NodeStatus.PENDING
+            node.output = None
+            node.error = None
 
     return state
     
