@@ -1,0 +1,107 @@
+import asyncio
+import pytest
+
+from agents.executor import Executor
+from core.state import SystemState, TaskNode, NodeStatus
+
+
+def create_node(node_id, dependencies=None):
+
+    return TaskNode(
+        id=node_id,
+        description=node_id,
+        tool="test",
+        depends_on=dependencies or [],
+    )
+
+
+@pytest.mark.asyncio
+async def test_concurrent_execution():
+
+    both_started = asyncio.Event()
+    started = set()
+
+    async def test_tool(task, state):
+
+        started.add(task.id)
+
+        if len(started) == 2:
+            both_started.set()
+
+        await asyncio.wait_for(
+            both_started.wait(),
+            timeout=1,
+        )
+
+        return task.id
+
+    state = SystemState(
+        query="test",
+        dag={
+            "a": create_node("a"),
+            "b": create_node("b"),
+        },
+    )
+
+    executor = Executor(
+        tools={"test": test_tool}
+    )
+
+    await executor.execute_ready(state)
+
+    assert all(
+        node.status == NodeStatus.SUCCESS
+        for node in state.dag.values()
+    )
+
+
+@pytest.mark.asyncio
+async def test_dependency_ordering():
+
+    async def test_tool(task, state):
+        return task.id
+
+    state = SystemState(
+        query="test",
+        dag={
+            "first": create_node("first"),
+            "second": create_node("second", ["first"]),
+        },
+    )
+
+    executor = Executor(
+        tools={"test": test_tool}
+    )
+
+    await executor.execute_ready(state)
+
+    assert state.dag["first"].status == NodeStatus.SUCCESS
+    assert state.dag["second"].status == NodeStatus.PENDING
+
+    await executor.execute_ready(state)
+
+    assert state.dag["second"].status == NodeStatus.SUCCESS
+
+
+@pytest.mark.asyncio
+async def test_tool_failure():
+
+    async def broken_tool(task, state):
+
+        raise RuntimeError("tool failed")
+
+    state = SystemState(
+        query="test",
+        dag={
+            "task": create_node("task"),
+        },
+    )
+
+    executor = Executor(
+        tools={"test": broken_tool}
+    )
+
+    await executor.execute_ready(state)
+
+    assert state.dag["task"].status == NodeStatus.FAILED
+    assert state.dag["task"].error == "tool failed"
