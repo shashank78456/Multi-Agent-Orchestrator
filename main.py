@@ -39,6 +39,7 @@ async def run_workflow(state: SystemState, state_file: str=STATE_FILE) -> System
         if state.phase == Phase.CLARIFY:
             if not state.clarification_checked:
                 clarifier.check(state)
+                save_checkpoint(state, state_file)
 
             if state.needs_clarification:
                 print(state.clarification_question or "Please provide more details about your request.")
