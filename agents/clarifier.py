@@ -2,6 +2,9 @@ from core.state import SystemState
 
 class Clarifier:
     
+    def __init__(self, llm):
+        self.llm = llm
+    
     def check(self, state: SystemState) -> SystemState:
         """
         Check whether the user's query needs clarification.

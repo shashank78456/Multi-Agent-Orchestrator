@@ -5,6 +5,9 @@ from core.state import SystemState, TaskNode
 
 class Planner:
     
+    def __init__(self, llm):
+        self.llm = llm
+    
     def create_plan(self, state: SystemState) -> SystemState:
         """
         Convert the user's query into a task DAG.

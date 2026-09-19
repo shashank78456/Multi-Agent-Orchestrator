@@ -50,6 +50,9 @@ DEFAULT_TOOLS: Dict[str, ToolFunction] = {
 
 class Executor:
     
+    def __init__(self, llm):
+        self.llm = llm
+    
     def __init__(self, tools: Optional[Dict[str, ToolFunction]]=None):
         self.tools = DEFAULT_TOOLS.copy() if tools is None else tools
     
